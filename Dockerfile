@@ -1,0 +1,6 @@
+FROM ghcr.io/cinnamon/kotaemon:main-full
+
+ENV GRADIO_SERVER_NAME=0.0.0.0
+ENV GRADIO_SERVER_PORT=8080
+EXPOSE 8080
+

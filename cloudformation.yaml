@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS App Runner service deployment from ECR'
+
+Parameters:
+  ServiceName:
+    Type: String
+    Description: Name of the App Runner service
+
+  ImageUri:
+    Type: String
+    Default: 077590795309.dkr.ecr.eu-west-1.amazonaws.com/kotaemon:latest
+    Description: URI of the container image in ECR
+
+Resources:
+  # Role for App Runner to pull images from ECR
+  AppRunnerECRAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ServiceName}-ecr-access-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: build.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+
+  # # Role for App Runner service execution
+  # AppRunnerServiceRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     RoleName: !Sub ${ServiceName}-service-role
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service: tasks.apprunner.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     ManagedPolicyArns:
+  #       - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+  #     Policies:
+  #       - PolicyName: !Sub ${ServiceName}-service-policy
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - ecr:GetAuthorizationToken
+  #                 - ecr:BatchCheckLayerAvailability
+  #                 - ecr:GetDownloadUrlForLayer
+  #                 - ecr:BatchGetImage
+  #               Resource: '*'
+  #             - Effect: Allow
+  #               Action:
+  #                 - logs:CreateLogGroup
+  #                 - logs:CreateLogStream
+  #                 - logs:PutLogEvents
+  #               Resource: '*'
+
+  AppRunnerService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: !Ref ServiceName
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !GetAtt AppRunnerECRAccessRole.Arn
+        AutoDeploymentsEnabled: true
+        ImageRepository:
+          ImageConfiguration:
+            Port: "8080"
+          ImageIdentifier: !Ref ImageUri
+          ImageRepositoryType: ECR
+
+Outputs:
+  ServiceURL:
+    Description: URL of the App Runner service
+    Value: !GetAtt AppRunnerService.ServiceUrl
+  ECRAccessRoleArn:
+    Description: ARN of the ECR Access Role
+    Value: !GetAtt AppRunnerECRAccessRole.Arn 
